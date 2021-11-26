@@ -1,6 +1,6 @@
 module JSONStat
 
-using JSON3, StructTypes
+using StructTypes
 
 export datatable
 
