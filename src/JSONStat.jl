@@ -1,6 +1,6 @@
 module JSONStat
 
-using JSON3, StructTypes
+using JSON3, StructTypes, Tables, PrettyTables
 
 export datatable
 
@@ -25,11 +25,24 @@ end
 
 StructTypes.StructType(::Type{Dataset}) = StructTypes.Mutable() # For JSON3
 
+# Wrapper for defining specific behaviours (show...)
+struct datatable
+    name::String
+    columns::NamedTuple
+end
+
+Tables.istable(::Type{<:datatable}) = true
+Tables.columnaccess(::Type{<:datatable}) = true
+Tables.columns(dt::datatable) = dt.columns
+
+# name(dt::datatable) = getfield(dt, :name)
+
 """Basic information on dataset dimensions"""
 function parsedimensions(dt::Dataset)
+    
     dims = Vector()
 
-    for (id, sz) in zip(dt.id, dt.size) # Constructs a Vector of Tuples containing (dimension, label, size)
+    for (id, sz) in zip(dt.id, dt.size) # Constructs a Vector of Tuples containing (dimension, labels, size)
         nm = Symbol(dt.dimension[id]["label"])
         categories = dt.dimension[id]["category"]
 
@@ -38,7 +51,7 @@ function parsedimensions(dt::Dataset)
                 order = sortperm(collect(values(categories["index"])))
                 orderedkeys = collect(keys(categories["index"]))[order] # orders categories by index
                 push!(dims,
-                      (; nm => [categories["label"][idx] for idx in orderedkeys], size=sz)) # Label ordered by index
+                      (; nm => [categories["label"][idx] for idx in orderedkeys], size=sz)) # Labels ordered by index
             else
                 push!(dims,
                       (; nm => [categories["label"][idx] for idx in categories["index"]],
@@ -68,7 +81,10 @@ function dicttovect(dt::Dataset, l::Int)
 end
 
 """Constructs a NameTuple with columnames => values for Tables.jl compliance"""
-function datatable(dt::Dataset)
+function read(js::Union{Vector{UInt8},String})
+     
+    dt = JSON3.read(js,Dataset)
+     
     l = prod(dt.size)
     dim = parsedimensions(dt)
     (typeof(dt.value) == Dict{String,Any}) ? data = dicttovect(dt, l) : data = dt.value
@@ -76,6 +92,7 @@ function datatable(dt::Dataset)
 
     temp = (;) # Empty NamedTuple
 
+    # Dimension columns
     f = 1
     for dᵢ in dim
         if dᵢ.size > 1 # Ignoring dimensions with one value
@@ -86,13 +103,14 @@ function datatable(dt::Dataset)
         end
     end
 
-    return merge(temp, (; Value=data[mask])) # A NamedTuple of data meets Tables.jl interface with its default implementation
+    return datatable(dt.label,
+                    merge(temp, (; Value=data[mask]))) # A NamedTuple of data meets Tables.jl interface with its default implementation
 end
 
-function parse(f::Union{Vector{UInt8},String})
-    js = JSON3.read(f,DataType)
-    println(js.name,"\n")    
-    datatable(js)
+function Base.show(io::IO,dt::datatable) 
+    println("\n ",length(dt.columns[1]),"x",length(dt.columns)," JSONStat.datatable") # Todo add columns and rows
+    printstyled(" ",dt.name,"\n"; bold=true)
+    pretty_table(dt)
 end
 
 end #Module

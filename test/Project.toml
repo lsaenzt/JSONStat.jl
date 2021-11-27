@@ -1,0 +1,4 @@
+[deps]
+HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
+JSONStat = "49d6b9cb-bec4-42b6-b442-6ff0bc24f19a"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
