@@ -1,10 +1,12 @@
 module JSONStat
 
-using StructTypes
+using JSON3, StructTypes
 
 export datatable
 
-mutable struct Dataset
+# Struct for wrapping the JSONStat response
+# Not really necessary as JSON3.Object is almost the same but knowing the fields facilitates maintanance and development.
+mutable struct Dataset 
     version::String
     label::String
     id::Array{String}
@@ -21,7 +23,7 @@ mutable struct Dataset
     Dataset() = new()
 end
 
-StructTypes.StructType(::Type{Dataset}) = StructTypes.Mutable()
+StructTypes.StructType(::Type{Dataset}) = StructTypes.Mutable() # For JSON3
 
 """Basic information on dataset dimensions"""
 function parsedimensions(dt::Dataset)
@@ -85,6 +87,12 @@ function datatable(dt::Dataset)
     end
 
     return merge(temp, (; Value=data[mask])) # A NamedTuple of data meets Tables.jl interface with its default implementation
+end
+
+function parse(f::Union{Vector{UInt8},String})
+    js = JSON3.read(f,DataType)
+    println(js.name,"\n")    
+    datatable(js)
 end
 
 end #Module
