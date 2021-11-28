@@ -5,39 +5,50 @@ using JSON3, StructTypes, Tables, PrettyTables
 export datatable
 
 # Struct for wrapping the JSONStat response
-# Not really necessary as JSON3.Object is almost the same but knowing the fields facilitates maintanance and development.
 mutable struct Dataset 
     version::String
+    class::String
     label::String
+    note::Any
     id::Array{String}
     size::Array{Int}
-    extension::Any
+    dimension::Any
     value::Any
     status::Any
-    dimension::Any
-    class::String
-    href::String
+    extension::Any
+    href::Any
+    link::Any
     source::String
     role::Any
 
     Dataset() = new()
 end
 
-StructTypes.StructType(::Type{Dataset}) = StructTypes.Mutable() # For JSON3
+StructTypes.StructType(::Type{Dataset}) = StructTypes.Mutable() # For JSON3. Mutable because JSONStat does not always return all the fields.
 
 # Wrapper for defining specific behaviours (show...)
-struct datatable
+struct datatable <: Tables.AbstractColumns
     name::String
-    columns::NamedTuple
+    data::NamedTuple
+    dimensions::Vector
 end
 
 Tables.istable(::Type{<:datatable}) = true
 Tables.columnaccess(::Type{<:datatable}) = true
-Tables.columns(dt::datatable) = dt.columns
+Tables.columns(dt::datatable) = dt
 
-# name(dt::datatable) = getfield(dt, :name)
+# getter methods to avoid getproperty clash
+name(dt::datatable) = getfield(dt, :name)
+data(dt::datatable) = getfield(dt, :data)
+dimensions(dt::datatable) = getfield(dt, :dimensions)
 
-"""Basic information on dataset dimensions"""
+# Methods for Tables.jl acces to data
+Tables.columnnames(dt::datatable) = propertynames(data(dt))
+Tables.getcolumn(dt::datatable, i::Int)	 = getfield(data(dt), i)
+Tables.getcolumn(dt::datatable, nm::Symbol) = getproperty(data(dt), nm)
+
+
+"""Basic information on dataset dimensions:label, categories, size"""
 function parsedimensions(dt::Dataset)
     
     dims = Vector()
@@ -95,22 +106,22 @@ function read(js::Union{Vector{UInt8},String})
     # Dimension columns
     f = 1
     for dᵢ in dim
-        if dᵢ.size > 1 # Ignoring dimensions with one value
-            values = repeat(dᵢ[1]; inner=div(l, dᵢ.size * f), outer=f)[mask]
-            temp = merge((; keys(dᵢ)[1] => values), temp)
+        values = repeat(dᵢ[1]; inner=div(l, dᵢ.size * f), outer=f)[mask]
+        temp = merge((; keys(dᵢ)[1] => values), temp)
 
-            f = f * dᵢ.size
-        end
+        f = f * dᵢ.size
     end
 
     return datatable(dt.label,
-                    merge(temp, (; Value=data[mask]))) # A NamedTuple of data meets Tables.jl interface with its default implementation
+                    merge(temp, (; Value=data[mask])),
+                    dim) # A NamedTuple of data meets Tables.jl interface with its default implementation
 end
 
 function Base.show(io::IO,dt::datatable) 
-    println("\n ",length(dt.columns[1]),"x",length(dt.columns)," JSONStat.datatable") # Todo add columns and rows
-    printstyled(" ",dt.name,"\n"; bold=true)
-    pretty_table(dt)
+    println("\n ",length(data(dt)),"x",length(data(dt)[1])," JSONStat.datatable")
+    printstyled(" ",name(dt),"\n"; bold=true)
+    pretty_table(dt;alignment=:l)
 end
 
-end #Module
+
+end # Module
