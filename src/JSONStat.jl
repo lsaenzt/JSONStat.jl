@@ -1,5 +1,9 @@
 module JSONStat
 
+# TODO: Units
+# TODO: Deal with 'Collection' class
+# TODO: Child
+
 using JSON3, StructTypes, Tables, PrettyTables
 
 export datatable
@@ -24,7 +28,7 @@ mutable struct Dataset
     Dataset() = new()
 end
 
-StructTypes.StructType(::Type{Dataset}) = StructTypes.Mutable() # For JSON3. Mutable because JSONStat does not always return all the fields.
+StructTypes.StructType(::Type{Dataset}) = StructTypes.Mutable() # For JSON3. Mutable as JSONStat has 
 
 # Wrapper for defining specific behaviours (show...)
 struct datatable <: Tables.AbstractColumns
@@ -57,23 +61,27 @@ function parsedimensions(dt::Dataset)
         nm = Symbol(dt.dimension[id]["label"])
         categories = dt.dimension[id]["category"]
 
-        if haskey(categories, "label")
+        #TODO: Rediseñar esto según JSONStat.org. Puede ser sólo 'label', solo 'index' o los dos
+
+        if haskey(categories, "label") && haskey(categories, "index") # Categories have 'label' and 'index'
             if typeof(categories["index"]) == Dict{String,Any}
                 order = sortperm(collect(values(categories["index"])))
                 orderedkeys = collect(keys(categories["index"]))[order] # orders categories by index
                 push!(dims,
-                      (; nm => [categories["label"][idx] for idx in orderedkeys], size=sz)) # Labels ordered by index
+                    (; nm => [categories["label"][idx] for idx in orderedkeys], size=sz)) # Labels ordered by index
             else
                 push!(dims,
-                      (; nm => [categories["label"][idx] for idx in categories["index"]],
-                       size=sz)) # Iterado según Index
+                    (; nm => [categories["label"][idx] for idx in categories["index"]],
+                    size=sz)) # Iterado según Index
             end
-        else
-            if typeof(categories["index"]) == Dict{String,Any}
+        elseif haskey(categories, "label") # Categories only have 'label'
+                push!(dims,(; nm => collect(values(dt.dimension[id]["category"]["label"])),size=sz))
+        else # Categories only have 'index'
+            if typeof(categories["index"]) == Dict{String,Any} # index is a  Dict
                 order = sortperm(collect(values(categories["index"])))
                 orderedkeys = collect(keys(categories["index"]))[order] # orders categories by index
                 push!(dims, (; nm => orderedkeys, size=sz))
-            else
+            else # index is a Vector
                 push!(dims, (; nm => dt.dimension[id]["category"]["index"], size=sz))
             end
         end
@@ -93,15 +101,17 @@ end
 
 """Constructs a NameTuple with columnames => values for Tables.jl compliance"""
 function read(js::Union{Vector{UInt8},String})
-     
+          
     dt = JSON3.read(js,Dataset)
+
+    dt.class != "dataset" && error("Currently only 'dataset' class is supported")
      
     l = prod(dt.size)
     dim = parsedimensions(dt)
     (typeof(dt.value) == Dict{String,Any}) ? data = dicttovect(dt, l) : data = dt.value
     mask = @. !ismissing(data) # 1 for non missing values
 
-    temp = (;) # Empty NamedTuple
+    temp = NamedTuple() # Empty NamedTuple
 
     # Dimension columns
     f = 1
@@ -114,7 +124,7 @@ function read(js::Union{Vector{UInt8},String})
 
     return datatable(dt.label,
                     merge(temp, (; Value=data[mask])),
-                    dim) # A NamedTuple of data meets Tables.jl interface with its default implementation
+                    dim) 
 end
 
 function Base.show(io::IO,dt::datatable) 
