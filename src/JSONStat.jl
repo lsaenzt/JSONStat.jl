@@ -34,6 +34,7 @@ StructTypes.StructType(::Type{Dataset}) = StructTypes.Mutable() # For JSON3. Mut
 struct datatable <: Tables.AbstractColumns
     name::String
     data::NamedTuple
+    source::String
     dimensions::Vector
 end
 
@@ -44,6 +45,7 @@ Tables.columns(dt::datatable) = dt
 # getter methods to avoid getproperty clash
 name(dt::datatable) = getfield(dt, :name)
 data(dt::datatable) = getfield(dt, :data)
+source(dt::datatable) = getfield(dt, :source)
 dimensions(dt::datatable) = getfield(dt, :dimensions)
 
 # Methods for Tables.jl acces to data
@@ -61,28 +63,26 @@ function parsedimensions(dt::Dataset)
         nm = Symbol(dt.dimension[id]["label"])
         categories = dt.dimension[id]["category"]
 
-        #TODO: Rediseñar esto según JSONStat.org. Puede ser sólo 'label', solo 'index' o los dos
-
         if haskey(categories, "label") && haskey(categories, "index") # Categories have 'label' and 'index'
             if typeof(categories["index"]) == Dict{String,Any}
                 order = sortperm(collect(values(categories["index"])))
                 orderedkeys = collect(keys(categories["index"]))[order] # orders categories by index
                 push!(dims,
-                    (; nm => [categories["label"][idx] for idx in orderedkeys], size=sz)) # Labels ordered by index
+                    (; label = nm, categories = [categories["label"][idx] for idx in orderedkeys], size = sz)) # Labels ordered by index
             else
                 push!(dims,
-                    (; nm => [categories["label"][idx] for idx in categories["index"]],
+                    (; label = nm, categories = [categories["label"][idx] for idx in categories["index"]],
                     size=sz)) # Iterado según Index
             end
         elseif haskey(categories, "label") # Categories only have 'label'
-                push!(dims,(; nm => collect(values(dt.dimension[id]["category"]["label"])),size=sz))
+                push!(dims,(; label = nm, categories = collect(values(dt.dimension[id]["category"]["label"])),size=sz))
         else # Categories only have 'index'
             if typeof(categories["index"]) == Dict{String,Any} # index is a  Dict
                 order = sortperm(collect(values(categories["index"])))
                 orderedkeys = collect(keys(categories["index"]))[order] # orders categories by index
-                push!(dims, (; nm => orderedkeys, size=sz))
+                push!(dims, (; label = nm, categories = orderedkeys, size=sz))
             else # index is a Vector
-                push!(dims, (; nm => dt.dimension[id]["category"]["index"], size=sz))
+                push!(dims, (; label = nm, categories = dt.dimension[id]["category"]["index"], size=sz))
             end
         end
     end
@@ -104,33 +104,38 @@ function read(js::Union{Vector{UInt8},String})
           
     dt = JSON3.read(js,Dataset)
 
-    dt.class != "dataset" && error("Currently only 'dataset' class is supported")
+    dt.class != "dataset" && error("Only 'dataset' class supported")
      
     l = prod(dt.size)
     dim = parsedimensions(dt)
     (typeof(dt.value) == Dict{String,Any}) ? data = dicttovect(dt, l) : data = dt.value
     mask = @. !ismissing(data) # 1 for non missing values
 
-    temp = NamedTuple() # Empty NamedTuple
+    headers = Vector{Symbol}(undef,length(dt.size)+1)
+    values = Vector{Any}(undef,length(dt.size)+1)
 
     # Dimension columns
     f = 1
-    for dᵢ in dim
-        values = repeat(dᵢ[1]; inner=div(l, dᵢ.size * f), outer=f)[mask]
-        temp = merge((; keys(dᵢ)[1] => values), temp)
-
+    for (i,dᵢ) in enumerate(dim)
+        headers[i] = dᵢ[1]
+        values[i] = repeat(dᵢ.categories; inner=div(l, dᵢ.size * f), outer=f)[mask]
         f = f * dᵢ.size
     end
 
+    # Value column
+    headers[end] = :Value
+    values[end] = data[mask]
+
     return datatable(dt.label,
-                    merge(temp, (; Value=data[mask])),
-                    dim) 
+                    (;zip(headers,values)...), # NamedTuple of values for easy Tables.jl compliance
+                    dt.source,dim) 
 end
 
 function Base.show(io::IO,dt::datatable) 
     println("\n ",length(data(dt)),"x",length(data(dt)[1])," JSONStat.datatable")
     printstyled(" ",name(dt),"\n"; bold=true)
-    pretty_table(dt;alignment=:l)
+    println(" ",source(dt))
+    pretty_table(dt; alignment = :l)
 end
 
 
