@@ -6,23 +6,23 @@ module JSONStat
 
 using JSON3, StructTypes, Tables, PrettyTables
 
-export datatable
+export Datatable
 
 # Struct for wrapping the JSONStat response
 mutable struct Dataset 
     version::String
     class::String
+    source::String
     label::String
-    note::Any
     id::Array{String}
     size::Array{Int}
     dimension::Any
     value::Any
     status::Any
+    note::Any
     extension::Any
     href::Any
     link::Any
-    source::String
     role::Any
 
     Dataset() = new()
@@ -30,28 +30,28 @@ end
 
 StructTypes.StructType(::Type{Dataset}) = StructTypes.Mutable() # For JSON3. Mutable as JSONStat has 
 
-# Wrapper for defining specific behaviours (show...)
-struct datatable <: Tables.AbstractColumns
+# Wrapper for defining specific show method and accessors
+struct Datatable <: Tables.AbstractColumns
     name::String
     data::NamedTuple
     source::String
     dimensions::Vector
 end
 
-Tables.istable(::Type{<:datatable}) = true
-Tables.columnaccess(::Type{<:datatable}) = true
-Tables.columns(dt::datatable) = dt
+Tables.istable(::Type{<:Datatable}) = true
+Tables.columnaccess(::Type{<:Datatable}) = true
+Tables.columns(dt::Datatable) = dt
 
 # getter methods to avoid getproperty clash
-name(dt::datatable) = getfield(dt, :name)
-data(dt::datatable) = getfield(dt, :data)
-source(dt::datatable) = getfield(dt, :source)
-dimensions(dt::datatable) = getfield(dt, :dimensions)
+name(dt::Datatable) = getfield(dt, :name)
+data(dt::Datatable) = getfield(dt, :data)
+source(dt::Datatable) = getfield(dt, :source)
+dimensions(dt::Datatable) = getfield(dt, :dimensions)
 
 # Methods for Tables.jl acces to data
-Tables.columnnames(dt::datatable) = propertynames(data(dt))
-Tables.getcolumn(dt::datatable, i::Int)	 = getfield(data(dt), i)
-Tables.getcolumn(dt::datatable, nm::Symbol) = getproperty(data(dt), nm)
+Tables.columnnames(dt::Datatable) = propertynames(data(dt))
+Tables.getcolumn(dt::Datatable, i::Int)	 = getfield(data(dt), i)
+Tables.getcolumn(dt::Datatable, nm::Symbol) = getproperty(data(dt), nm)
 
 
 """Basic information on dataset dimensions:label, categories, size"""
@@ -68,21 +68,21 @@ function parsedimensions(dt::Dataset)
                 order = sortperm(collect(values(categories["index"])))
                 orderedkeys = collect(keys(categories["index"]))[order] # orders categories by index
                 push!(dims,
-                    (; label = nm, categories = [categories["label"][idx] for idx in orderedkeys], size = sz)) # Labels ordered by index
+                    (; id = id, label = nm, categories = [categories["label"][idx] for idx in orderedkeys], size = sz)) # Labels ordered by index
             else
                 push!(dims,
-                    (; label = nm, categories = [categories["label"][idx] for idx in categories["index"]],
+                    (; id = id,label = nm, categories = [categories["label"][idx] for idx in categories["index"]],
                     size=sz)) # Iterado según Index
             end
         elseif haskey(categories, "label") # Categories only have 'label'
-                push!(dims,(; label = nm, categories = collect(values(dt.dimension[id]["category"]["label"])),size=sz))
+                push!(dims,(; id = id,label = nm, categories = collect(values(dt.dimension[id]["category"]["label"])),size=sz))
         else # Categories only have 'index'
             if typeof(categories["index"]) == Dict{String,Any} # index is a  Dict
                 order = sortperm(collect(values(categories["index"])))
                 orderedkeys = collect(keys(categories["index"]))[order] # orders categories by index
-                push!(dims, (; label = nm, categories = orderedkeys, size=sz))
+                push!(dims, (; id = id, label = nm, categories = orderedkeys, size=sz))
             else # index is a Vector
-                push!(dims, (; label = nm, categories = dt.dimension[id]["category"]["index"], size=sz))
+                push!(dims, (; id = id, label = nm, categories = dt.dimension[id]["category"]["index"], size=sz))
             end
         end
     end
@@ -98,6 +98,10 @@ function dicttovect(dt::Dataset, l::Int)
     end
     return v
 end
+
+"""Stores metadata"""
+function metadata(dt::Dataset) end
+
 
 """Constructs a NameTuple with columnames => values for Tables.jl compliance"""
 function read(js::Union{Vector{UInt8},String})
@@ -117,7 +121,7 @@ function read(js::Union{Vector{UInt8},String})
     # Dimension columns
     f = 1
     for (i,dᵢ) in enumerate(dim)
-        headers[i] = dᵢ[1]
+        headers[i] = dᵢ.label
         values[i] = repeat(dᵢ.categories; inner=div(l, dᵢ.size * f), outer=f)[mask]
         f = f * dᵢ.size
     end
@@ -126,13 +130,13 @@ function read(js::Union{Vector{UInt8},String})
     headers[end] = :Value
     values[end] = data[mask]
 
-    return datatable(dt.label,
+    return Datatable(dt.label,
                     (;zip(headers,values)...), # NamedTuple of values for easy Tables.jl compliance
                     dt.source,dim) 
 end
 
-function Base.show(io::IO,dt::datatable) 
-    println("\n ",length(data(dt)),"x",length(data(dt)[1])," JSONStat.datatable")
+function Base.show(io::IO,dt::Datatable) 
+    println("\n ",length(data(dt)),"x",length(data(dt)[1])," JSONStat.Datatable")
     printstyled(" ",name(dt),"\n"; bold=true)
     println(" ",source(dt))
     pretty_table(dt; alignment = :l)
