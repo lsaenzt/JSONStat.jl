@@ -1,8 +1,8 @@
 module JSONStat
 
-# TODO: Units
+# TODO: add Units and Child to dimensions
 # TODO: Deal with 'Collection' class
-# TODO: Child
+# TODO: add metadata function
 
 using JSON3, StructTypes, Tables, PrettyTables
 
@@ -35,7 +35,8 @@ struct Datatable <: Tables.AbstractColumns
     name::String
     data::NamedTuple
     source::String
-    dimensions::Vector
+    dimensions::Dict
+    metadata::Dict
 end
 
 Tables.istable(::Type{<:Datatable}) = true
@@ -54,7 +55,7 @@ Tables.getcolumn(dt::Datatable, i::Int)	 = getfield(data(dt), i)
 Tables.getcolumn(dt::Datatable, nm::Symbol) = getproperty(data(dt), nm)
 
 
-"""Basic information on dataset dimensions:label, categories, size"""
+"""Basic information on dataset dimensions:label, categories, size""" # TODO: Unit, Child
 function parsedimensions(dt::Dataset)
     
     dims = Vector()
@@ -90,6 +91,17 @@ function parsedimensions(dt::Dataset)
     return dims
 end
 
+"""Stores metadata"""
+function metadata(dt::Dataset) 
+
+    fields = (:version, :class, :note, :extension, :href, :link, :role)
+    mt = Dict()
+    for fᵢ in fields
+        isdefined(dt,fᵢ) && (mt[fᵢ] = getfield(dt,fᵢ))
+    end
+    mt
+end
+
 """Array from a sparse JSONStat values"""
 function dicttovect(dt::Dataset, l::Int)
     v = Vector{Any}(missing, l)
@@ -98,10 +110,6 @@ function dicttovect(dt::Dataset, l::Int)
     end
     return v
 end
-
-"""Stores metadata"""
-function metadata(dt::Dataset) end
-
 
 """Constructs a NameTuple with columnames => values for Tables.jl compliance"""
 function read(js::Union{Vector{UInt8},String})
@@ -132,7 +140,9 @@ function read(js::Union{Vector{UInt8},String})
 
     return Datatable(dt.label,
                     (;zip(headers,values)...), # NamedTuple of values for easy Tables.jl compliance
-                    dt.source,dim) 
+                    dt.source,
+                    Dict(String(j.label) => j for j in dim),
+                    metadata(dt)) 
 end
 
 function Base.show(io::IO,dt::Datatable) 
