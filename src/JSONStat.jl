@@ -2,7 +2,6 @@ module JSONStat
 
 # TODO: add Units and Child to dimensions
 # TODO: Deal with 'Collection' class
-# TODO: add metadata function
 
 using JSON3, StructTypes, Tables, PrettyTables
 
@@ -39,6 +38,7 @@ struct Datatable <: Tables.AbstractColumns
     metadata::Dict
 end
 
+# Tables.jl implementation
 Tables.istable(::Type{<:Datatable}) = true
 Tables.columnaccess(::Type{<:Datatable}) = true
 Tables.columns(dt::Datatable) = dt
@@ -111,7 +111,17 @@ function dicttovect(dt::Dataset, l::Int)
     return v
 end
 
-"""Constructs a NameTuple with columnames => values for Tables.jl compliance"""
+"""
+    SMDX.read(js::Union{Vector{UInt8},String})
+
+Constructs JSONStat.datatable compatible with Tables.jl
+
+# Example
+```julia  
+    HTTP.get("https://json-stat.org/samples/canada.json").body |> JSONStat.read
+```
+
+"""
 function read(js::Union{Vector{UInt8},String})
           
     dt = JSON3.read(js,Dataset)
