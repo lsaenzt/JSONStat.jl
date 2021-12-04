@@ -1,0 +1,17 @@
+Basic structure of a JSONStat 
+
+Dataset 
+    version::String
+    class::String
+    source::String
+    label::String
+    id::Array{String}
+    size::Array{Int}
+    dimension::Any
+    value::Any
+    status::Any
+    note::Any
+    extension::Any
+    href::Any
+    link::Any
+    role::Any

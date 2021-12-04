@@ -4,10 +4,9 @@ module JSONStat
 # TODO: Deal with 'Collection' class
 
 using JSON3, StructTypes, Tables, PrettyTables
+export dimensions, metadata
 
-export Datatable
-
-# Struct for wrapping the JSONStat response
+# Struct for wrapping the JSONStat response. Really necessary?
 mutable struct Dataset 
     version::String
     class::String
@@ -48,6 +47,7 @@ name(dt::Datatable) = getfield(dt, :name)
 data(dt::Datatable) = getfield(dt, :data)
 source(dt::Datatable) = getfield(dt, :source)
 dimensions(dt::Datatable) = getfield(dt, :dimensions)
+metadata(dt::Datatable) = getfield(dt, :metadata)
 
 # Methods for Tables.jl acces to data
 Tables.columnnames(dt::Datatable) = propertynames(data(dt))
