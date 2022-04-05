@@ -4,7 +4,6 @@ module JSONStat
 # TODO: Deal with 'Collection' class
 
 using JSON3, StructTypes, Tables, PrettyTables
-export dimensions, metadata
 
 # Struct for wrapping the JSONStat response. Really necessary?
 mutable struct Dataset 
@@ -112,7 +111,7 @@ function dicttovect(dt::Dataset, l::Int)
 end
 
 """
-    SMDX.read(js::Union{Vector{UInt8},String})
+    JSONStat.read(js::Union{Vector{UInt8},String})
 
 Constructs JSONStat.datatable compatible with Tables.jl
 
