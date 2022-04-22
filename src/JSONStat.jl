@@ -66,9 +66,9 @@ function parsedimensions(dt::Dataset)
         if haskey(categories, "label") && haskey(categories, "index") # Categories have 'label' and 'index'
             if typeof(categories["index"]) == Dict{String,Any}
                 order = sortperm(collect(values(categories["index"])))
-                orderedkeys = collect(keys(categories["index"]))[order] # orders categories by index
+                orderedkeys = collect(keys(categories["index"]))[order] # sorts categories by index
                 push!(dims,
-                    (; id = id, label = nm, categories = [categories["label"][idx] for idx in orderedkeys], size = sz)) # Labels ordered by index
+                    (; id = id, label = nm, categories = [categories["label"][idx] for idx in orderedkeys], size = sz)) # Labels sorted by index
             else
                 push!(dims,
                     (; id = id,label = nm, categories = [categories["label"][idx] for idx in categories["index"]],
