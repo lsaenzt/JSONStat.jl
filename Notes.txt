@@ -1,15 +1,29 @@
 Basic structure of a JSONStat 
 
 Dataset 
-    version::String
+    version::String *
     class::String
     source::String
-    label::String
-    id::Array{String}
-    size::Array{Int}
-    dimension::Any
-    value::Any
+    id::Array{String} *
+    size::Array{Int} *
+    role::Object
+        time::Array
+        geo::Array
+        metric::Array
+    value::Array or Object *
     status::Any
+    dimension::Object *
+        id::Object *
+            category::Object *
+                index::Array or Object
+                label::string or Object
+                child::Object
+                coordinates::Object
+                unit::Object
+                 decimals::Number
+                 symbol::String
+                 position::String
+    updated::String
     note::Any
     extension::Any
     href::Any

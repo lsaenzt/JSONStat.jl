@@ -77,7 +77,7 @@ function parsedimensions(dt::Dataset)
         elseif haskey(categories, "label") # Categories only have 'label'
                 push!(dims,(; id = id,label = nm, categories = collect(values(dt.dimension[id]["category"]["label"])),size=sz))
         else # Categories only have 'index'
-            if typeof(categories["index"]) == Dict{String,Any} # index is a  Dict
+            if typeof(categories["index"]) == Dict{String,Any} # index is a Dict
                 order = sortperm(collect(values(categories["index"])))
                 orderedkeys = collect(keys(categories["index"]))[order] # orders categories by index
                 push!(dims, (; id = id, label = nm, categories = orderedkeys, size=sz))
@@ -160,6 +160,5 @@ function Base.show(io::IO,dt::Datatable)
     println(" ",source(dt))
     pretty_table(dt; alignment = :l)
 end
-
 
 end # Module
