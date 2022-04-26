@@ -1,6 +1,6 @@
 Basic structure of a JSONStat 
 
-(* Required field)
+(*: Required field)
 
 Dataset class
     version::String *
