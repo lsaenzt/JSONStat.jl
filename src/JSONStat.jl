@@ -6,17 +6,11 @@ module JSONStat
 
 using JSON3, Tables, PrettyTables, OrderedCollections
 
-# Fields to include in dataset metadata and dimension+category data and print
+# Fields to include in dataset metadata and dimension+category data and REPL print
 const metadatafields = (:source, :updated, :note, :extension, :href, :type, :link, :error) # excluding :version, :class , :role (added to category)
 const dimfields = (:note, :href, :label)
 const categoryfields = (:child, :coordinates, :unit) # TODO: Add :role
 const printfields = (:source, :updated) # TODO: fields to print when show()
-
-# Wrapper for validating JSONStat format and controlling dispatching
-struct JSONStatData
-    js::JSON3.Object
-    JSONStatData(js) = haskey(js, :version) ? new(js) : error("JSON data does not seem to conform JSONStat 2.0 standard")
-end
 
 # Output struct for defining specific show method and accessors
 struct Datatable <: Tables.AbstractColumns
@@ -63,27 +57,27 @@ Constructs JSONStat.datatable compatible with Tables.jl
 """
 function read(json::Union{Vector{UInt8},String})
 
-    jsondata = JSONStatData(JSON3.read(js))
+    jstat = JSON3.read(json)
+    # TODO: validate(jstat)
 
-    if dt.js.class == "dataset"
-        readdataset(jsondata)
-    elseif dt.js.class == "collection"
+    if jstat.class == "dataset"
+        readdataset(jstat)
+    elseif jstat.class == "collection"
         error("Collection class not supported yet")
     else
         error("Class not supported yet")
     end
 end
 
-function readdataset(dt::JSONStatData)
+function readdataset(jstat::JSON3.Object)
 
-    dt = jsondata.js
-    l = prod(dt.size)
-    dim = parsedimensions(dt)
-    (typeof(dt.value) == Dict{String,Any}) ? data = dicttovect(dt, l) : data = dt.value
+    l = prod(jstat.size)
+    dim = parsedimensions(jstat)
+    (typeof(jstat.value) == Dict{String,Any}) ? data = dicttovect(jstat, l) : data = jstat.value
     mask = @. !ismissing(data) # 1 for non missing values
 
-    headers = Vector{Symbol}(undef, length(dt.size) + 1)
-    values = Vector{Any}(undef, length(dt.size) + 1)
+    headers = Vector{Symbol}(undef, length(jstat.size) + 1)
+    values = Vector{Any}(undef, length(jstat.size) + 1)
 
     # Dimension columns
     f = 1
@@ -97,31 +91,30 @@ function readdataset(dt::JSONStatData)
     headers[end] = :Value
     values[end] = data[mask]
 
-    return Datatable(dt.label,
+    return Datatable(jstat.label,
         (; zip(headers, values)...), # NamedTuple of values for easy Tables.jl compliance
-        dt.source, # WARNING: :source is optional
+        jstat.source, # WARNING: :source is optional
         Dict(String(j.label) => j for j in dim),
-        metadata(dt))
+        metadata(jstat))
 end
 
 
-"""parsedimensions(dt) gathers basic information for building dimension columns and their category values.
+"""parsedimensions(jstat) gathers basic information for building dimension columns and their category values.
 Information is organized in a Vector of NamedTuples where each tuple has column label, a vector of categories labels/keys and size"""
-function parsedimensions(jsondata::JSONStatData)
+function parsedimensions(jstat::JSON3.Object)
 
-    dt = jsondata.js
     dims = Vector()
 
-    for (id, sz) in zip(dt.id, dt.size) # Constructs a Vector of Tuples containing (dimension, labels, size)
+    for (id, sz) in zip(jstat.id, jstat.size) # Constructs a Vector of Tuples containing (dimension, labels, size)
 
         # 1. Column names are the label of each dimension if it has one, if not the id is used
-        nm = haskey(dt.dimension[id], :label) ? Symbol(dt.dimension[id][:label]) : dt.dimension[id]
+        nm = haskey(jstat.dimension[id], :label) ? Symbol(jstat.dimension[id][:label]) : jstat.dimension[id]
 
         # 2. Gather categories in the correct order
-        categories = dt.dimension[id].category
+        categories = jstat.dimension[id].category
 
         if !haskey(categories, :index) # if there is no index, categories are the labels
-            push!(dims, (; id=id, label=nm, categories=collect(values(dt.dimension[id]["category"]["label"])), size=sz))
+            push!(dims, (; id=id, label=nm, categories=collect(values(jstat.dimension[id]["category"]["label"])), size=sz))
         else # if there is an index
             if isa(categories.index, JSON3.Object) # if categories is an Object dictionary we sort it. If it is an array it is alreary sorted
                 order = sortperm(collect(values(categories.index)))
@@ -143,25 +136,24 @@ function parsedimensions(jsondata::JSONStatData)
 end
 
 """Stores dataset metadata"""
-function metadata(jsondata::JSONStatData)
-    dt = jsondata.js
+function metadata(jstat::JSON3.Object)
+
     mt = OrderedDict()
     for fᵢ in metadatafields
-        haskey(dt, fᵢ) && (mt[fᵢ] = dt[fᵢ])
+        haskey(jstat, fᵢ) && (mt[fᵢ] = jstat[fᵢ])
     end
     mt
 end
 
 """Stores dimension and category metadata"""
-function dimensiondata(jsondata::JSONStatData)
-    dt = jsondata.js
-    dd = OrderedDict()  # TODO
+function dimensiondata(jstat::JSON3.Object)
+      dd = OrderedDict()  # TODO
 end
 
-"""Helper funciont. Creates an Array from JSONStat when sparse values are delivered as a dictionary"""
-function dicttovect(dt::JSONStatData, l::Int)
+"""Helper function. Creates an Array from JSONStat when sparse values are delivered as a dictionary"""
+function dicttovect(jstat::JSON3.Object, l::Int)
     v = Vector{Any}(missing, l)
-    for (k, j) in dt.value
+    for (k, j) in jstat.value
         v[parse(Int, k)+1] = j #JSONStat uses zero-indexing
     end
     return v
