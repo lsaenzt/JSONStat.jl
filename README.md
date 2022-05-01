@@ -2,7 +2,7 @@
 A Tables.jl compliant for reading JSONStat files. Right now, only 'dataset' class is supported
 Result is a JSONStat.Datatable that can be loaded into a DataFrame, saved with CSV or use any other Tables.jl-ready package
 
-# Example
+### Example
 ```julia
 using Dataframes
 HTTP.get("https://json-stat.org/samples/us-gsp.json").body |> JSONStat.read |> DataFrame
