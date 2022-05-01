@@ -1,6 +1,6 @@
 # JSONStat
-A Tables.jl compliant for reading JSONStat files. Right now, only 'dataset' class is supported
-Result is a JSONStat.Datatable that can be loaded into a DataFrame, saved with CSV or use any other Tables.jl-ready package
+A Tables.jl compliant for reading JSONStat files. Right now, only 'dataset' class is supported.
+Output is a JSONStat.Datatable that can be loaded into a DataFrame, saved with CSV or use any other Tables.jl-ready package
 
 ### Example
 ```julia
@@ -9,7 +9,7 @@ HTTP.get("https://json-stat.org/samples/us-gsp.json").body |> JSONStat.read |> D
 ```
 
 Additional information can be accesed using:
-    - ```JSONStat.dimensions(dt::JSONStat.Datatable)```
-    - ```JSONStat.metadata(dt::JSONStat.Datatable)```
+     - ```JSONStat.dimensions(dt::JSONStat.Datatable)```
+     - ```JSONStat.metadata(dt::JSONStat.Datatable)```
 
 Both functions return a Dictionary than can be pretty printed using ```JSONStat.pretty(d::Dict)```
