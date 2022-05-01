@@ -4,7 +4,7 @@ Output is a JSONStat.Datatable that can be loaded into a DataFrame, saved with C
 
 ### Example
 ```julia
-using Dataframes
+using JSONStat, Dataframes
 HTTP.get("https://json-stat.org/samples/us-gsp.json").body |> JSONStat.read |> DataFrame
 ```
 
