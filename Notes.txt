@@ -13,7 +13,7 @@ Dataset class
         geo::Array
         metric::Array
     value::Array or Object *
-    status::Any
+    status::Array or Object
     dimension::Object *
         "dimension id"::Object *
             category::Object *
@@ -38,3 +38,11 @@ Dataset class
     type::String
     note::Array
     error:Array
+
+Collection examples
+    https://json-stat.org/samples/  
+
+Dataset examples
+    https://json-stat.org/samples/oecd.json
+    https://json-stat.org/samples/canada.json
+    https://json-stat.org/samples/oecd-canada-col.json
