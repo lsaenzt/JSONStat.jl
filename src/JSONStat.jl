@@ -1,30 +1,32 @@
 module JSONStat
 
-# TODO: add Units and Child to dimensions
 # TODO: Deal with 'Collection' class
 # TODO: status field
 
-using JSON3, Tables, PrettyTables, OrderedCollections
+using JSON3, Tables, PrettyTables
 
 # Fields to include in dataset metadata and dimension+category data and REPL print
 const metadatafields = (:source, :updated, :note, :extension, :href, :type, :link, :error) # excluding :version, :class , :role (added to category)
-const dimfields = (:note, :href, :label)
-const categoryfields = (:child, :coordinates, :unit) # TODO: Add :role
-const printfields = (:source, :updated) # TODO: fields to print when show()
+const dimfields = (:note, :href)
+const categoryfields = (:child, :coordinates, :unit)
 
 # Output struct for defining specific show method and accessors
 struct Datatable <: Tables.AbstractColumns
     name::String
     data::NamedTuple
-    source::String
     dimensions::Dict
-    metadata::OrderedDict
+    metadata::Dict
 end
 
 function Base.show(io::IO, dt::Datatable)
     println("\n ", length(data(dt)), "x", length(data(dt)[1]), " JSONStat.Datatable")
     printstyled(" ", name(dt), "\n"; bold=true)
-    println(" ", source(dt))
+    if haskey(metadata(dt),:source)
+        println(" ", metadata(dt)[:source])
+    end
+    if haskey(metadata(dt),:updated)
+         println(" Updated: ", metadata(dt)[:updated])
+    end
     pretty_table(dt; alignment=:l)
 end
 
@@ -36,7 +38,6 @@ Tables.columns(dt::Datatable) = dt
 # getter methods to avoid getproperty clash
 name(dt::Datatable) = getfield(dt, :name)
 data(dt::Datatable) = getfield(dt, :data)
-source(dt::Datatable) = getfield(dt, :source)
 dimensions(dt::Datatable) = getfield(dt, :dimensions)
 metadata(dt::Datatable) = getfield(dt, :metadata)
 
@@ -93,11 +94,11 @@ function readdataset(jstat::JSON3.Object)
 
     return Datatable(jstat.label,
         (; zip(headers, values)...), # NamedTuple of values for easy Tables.jl compliance
-        jstat.source, # WARNING: :source is optional
-        Dict(String(j.label) => j for j in dim),
+        dimensiondata(jstat),
         metadata(jstat))
 end
 
+function validate(js::JSON3.Object) end
 
 """parsedimensions(jstat) gathers basic information for building dimension columns and their category values.
 Information is organized in a Vector of NamedTuples where each tuple has column label, a vector of categories labels/keys and size"""
@@ -137,8 +138,7 @@ end
 
 """Stores dataset metadata"""
 function metadata(jstat::JSON3.Object)
-
-    mt = OrderedDict()
+    mt = Dict()
     for fᵢ in metadatafields
         haskey(jstat, fᵢ) && (mt[fᵢ] = jstat[fᵢ])
     end
@@ -146,8 +146,35 @@ function metadata(jstat::JSON3.Object)
 end
 
 """Stores dimension and category metadata"""
-function dimensiondata(jstat::JSON3.Object)
-      dd = OrderedDict()  # TODO
+function dimensiondata(jstat::JSON3.Object) # NOT WORKING
+      dimdata = Dict() 
+      for dᵢ in keys(jstat.dimension)
+        lbl =  haskey(jstat.dimension[dᵢ], :label) ? jstat.dimension[dᵢ][:label] : string(jstat.dimension[dᵢ])
+        auxd = Dict()
+
+        auxd[:categories] = haskey(jstat.dimension[dᵢ].category,:label) ? # Adding categories labels/ids
+                            collect(values(jstat.dimension[dᵢ].category.label)) : string.(keys(jstat.dimension[dᵢ].category.index))
+
+        for i in keys(jstat.dimension[dᵢ]) # Adding dimension root info
+            if i in dimfields
+                auxd[i] = JSON3.copy(dᵢ[i])
+            end
+        end
+        if haskey(jstat, :role) # Adding dimension role if any
+            for (k,v) in jstat.role
+                if string(dᵢ) in v
+                auxd[:role] = string(k)
+                end
+            end
+        end
+        for i in keys(jstat.dimension[dᵢ].category) # Adding category info TODO: Handle :unit better (has category label...)
+            if i in categoryfields
+                auxd[i] = JSON3.copy(jstat.dimension[dᵢ].category[i])
+            end
+        end
+        dimdata[lbl] = auxd
+      end
+      dimdata
 end
 
 """Helper function. Creates an Array from JSONStat when sparse values are delivered as a dictionary"""
@@ -158,5 +185,8 @@ function dicttovect(jstat::JSON3.Object, l::Int)
     end
     return v
 end
+
+"""Pretty printing dimension data"""
+pretty(d::Dict) = JSON3.pretty(d)
 
 end # Module
