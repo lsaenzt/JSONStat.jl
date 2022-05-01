@@ -12,4 +12,4 @@ Additional information can be accesed using:
      - ```JSONStat.dimensions(dt::JSONStat.Datatable)```
      - ```JSONStat.metadata(dt::JSONStat.Datatable)```
 
-Both functions return a Dictionary than can be pretty printed using ```JSONStat.pretty(d::Dict)```
+Both functions return nested dictionaries than can be pretty printed using ```JSONStat.pretty(d::Dict)```
