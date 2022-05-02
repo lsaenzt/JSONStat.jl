@@ -2,6 +2,7 @@ module JSONStat
 
 # TODO: Deal with 'Collection' class
 # TODO: status field
+# TODO: validate(jstat)
 
 using JSON3, Tables, PrettyTables
 
@@ -59,7 +60,6 @@ Constructs JSONStat.datatable compatible with Tables.jl
 function read(json::Union{Vector{UInt8},String})
 
     jstat = JSON3.read(json)
-    # TODO: validate(jstat)
 
     if jstat.class == "dataset"
         readdataset(jstat)
