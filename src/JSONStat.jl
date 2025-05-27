@@ -74,7 +74,7 @@ function readdataset(jstat::JSON3.Object)
 
     l = prod(jstat.size)
     dim = parsedimensions(jstat)
-    (typeof(jstat.value) == Dict{String,Any} || typeof(jstat.value) == Dict{Symbol,Any}) ? data = dicttovect(jstat, l) : data = jstat.value
+    (typeof(jstat.value) == JSON3.Object) ? data = dicttovect(jstat, l) : data = jstat.value
     mask = @. !ismissing(data) # 1 for non missing values
 
     headers = Vector{Symbol}(undef, length(jstat.size) + 1)
