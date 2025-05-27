@@ -181,7 +181,7 @@ end
 function dicttovect(jstat::JSON3.Object, l::Int)
     v = Vector{Any}(missing, l)
     for (k, j) in jstat.value
-        v[parse(Int, k)+1] = j #JSONStat uses zero-indexing
+        v[parse(Int, string(k))+1] = j #JSONStat uses zero-indexing
     end
     return v
 end
