@@ -119,7 +119,7 @@ function parsedimensions(jstat::JSON3.Object)
         else # if there is an index
             if isa(categories.index, JSON3.Object) # if categories is an Object dictionary we sort it. If it is an array it is already sorted
                 order = sortperm(collect(values(categories.index)))
-                (minimun(order)==0) && (order = order .+1) # if zero indexing add 1
+                (minimum(order)==0) && (order = order .+1) # if zero indexing add 1
                 orderedkeys = collect(keys(categories.index))[order] # sorts categories by index
             else
                 orderedkeys = categories.index
