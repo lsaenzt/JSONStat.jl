@@ -101,7 +101,7 @@ end
 function validate(js::JSON3.Object) end
 
 """parsedimensions(jstat) gathers basic information for building dimension columns and their category values.
-Information is organized in a Vector of NamedTuples where each tuple has column label, a vector of categories labels/keys and size"""
+Information is stored in a Vector of NamedTuples where each tuple has column label, a vector of categories labels/keys and size"""
 function parsedimensions(jstat::JSON3.Object)
 
     dims = Vector()
@@ -117,8 +117,9 @@ function parsedimensions(jstat::JSON3.Object)
         if !haskey(categories, :index) # if there is no index, categories are the labels
             push!(dims, (; id=id, label=nm, categories=collect(values(jstat.dimension[id]["category"]["label"])), size=sz))
         else # if there is an index
-            if isa(categories.index, JSON3.Object) # if categories is an Object dictionary we sort it. If it is an array it is alreary sorted
+            if isa(categories.index, JSON3.Object) # if categories is an Object dictionary we sort it. If it is an array it is already sorted
                 order = sortperm(collect(values(categories.index)))
+                (minimun(order)==0) && (order = order .+1) # if zero indexing add 1
                 orderedkeys = collect(keys(categories.index))[order] # sorts categories by index
             else
                 orderedkeys = categories.index
@@ -126,7 +127,7 @@ function parsedimensions(jstat::JSON3.Object)
 
             if haskey(categories, :label) # if there is also labels
                 push!(dims,
-                    (; id=id, label=nm, categories=[categories.label[idx] for idx in orderedkeys], size=sz))
+                    (; id=id, label=nm, categories=[string(idx)*" "*categories.label[idx] for idx in orderedkeys], size=sz))
             else
                 push!(dims, (; id=id, label=nm, categories=orderedkeys, size=sz))
             end
