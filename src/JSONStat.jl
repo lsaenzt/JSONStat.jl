@@ -4,7 +4,7 @@ module JSONStat
 # TODO: status field
 # TODO: validate(jstat)
 
-using JSON3, Tables, PrettyTables
+using JSON, Tables, PrettyTables
 
 # Fields to include in dataset metadata and dimension+category data and REPL print
 const metadatafields = (:source, :updated, :note, :extension, :href, :type, :link, :error) # excluding :version, :class , :role (added to category)
@@ -59,7 +59,7 @@ Constructs JSONStat.datatable compatible with Tables.jl
 """
 function read(json::Union{Vector{UInt8},String})
 
-    jstat = JSON3.read(json)
+    jstat = JSON.parse(json)
 
     if jstat.class == "dataset"
         readdataset(jstat)
@@ -70,7 +70,7 @@ function read(json::Union{Vector{UInt8},String})
     end
 end
 
-function readdataset(jstat::JSON3.Object)
+function readdataset(jstat::JSON.Object)
 
     l = prod(jstat.size)
     dim = parsedimensions(jstat)
@@ -98,11 +98,11 @@ function readdataset(jstat::JSON3.Object)
         metadata(jstat))
 end
 
-function validate(js::JSON3.Object) end
+function validate(js::JSON.Object) end
 
 """parsedimensions(jstat) gathers basic information for building dimension columns and their category values.
 Information is organized in a Vector of NamedTuples where each tuple has column label, a vector of categories labels/keys and size"""
-function parsedimensions(jstat::JSON3.Object)
+function parsedimensions(jstat::JSON.Object)
 
     dims = Vector()
 
@@ -117,7 +117,7 @@ function parsedimensions(jstat::JSON3.Object)
         if !haskey(categories, :index) # if there is no index, categories are the labels
             push!(dims, (; id=id, label=nm, categories=collect(values(jstat.dimension[id]["category"]["label"])), size=sz))
         else # if there is an index
-            if isa(categories.index, JSON3.Object) # if categories is an Object dictionary we sort it. If it is an array it is alreary sorted
+            if isa(categories.index, JSON.Object) # if categories is an Object dictionary we sort it. If it is an array it is alreary sorted
                 order = sortperm(collect(values(categories.index)))
                 orderedkeys = collect(keys(categories.index))[order] # sorts categories by index
             else
@@ -137,7 +137,7 @@ function parsedimensions(jstat::JSON3.Object)
 end
 
 """Stores dataset metadata"""
-function metadata(jstat::JSON3.Object)
+function metadata(jstat::JSON.Object)
     mt = Dict()
     for fᵢ in metadatafields
         haskey(jstat, fᵢ) && (mt[fᵢ] = jstat[fᵢ])
@@ -146,7 +146,7 @@ function metadata(jstat::JSON3.Object)
 end
 
 """Stores dimension and category metadata"""
-function dimensiondata(jstat::JSON3.Object) # NOT WORKING
+function dimensiondata(jstat::JSON.Object) # NOT WORKING
       dimdata = Dict() 
       for dᵢ in keys(jstat.dimension)
         lbl =  haskey(jstat.dimension[dᵢ], :label) ? jstat.dimension[dᵢ][:label] : string(jstat.dimension[dᵢ])
@@ -157,7 +157,7 @@ function dimensiondata(jstat::JSON3.Object) # NOT WORKING
 
         for i in keys(jstat.dimension[dᵢ]) # Adding dimension root info
             if i in dimfields
-                auxd[i] = JSON3.copy(dᵢ[i])
+                auxd[i] = JSON.copy(dᵢ[i])
             end
         end
         if haskey(jstat, :role) # Adding dimension role if any
@@ -169,7 +169,7 @@ function dimensiondata(jstat::JSON3.Object) # NOT WORKING
         end
         for i in keys(jstat.dimension[dᵢ].category) # Adding category info TODO: Handle :unit better (has category label...)
             if i in categoryfields
-                auxd[i] = JSON3.copy(jstat.dimension[dᵢ].category[i])
+                auxd[i] = JSON.copy(jstat.dimension[dᵢ].category[i])
             end
         end
         dimdata[lbl] = auxd
@@ -178,7 +178,7 @@ function dimensiondata(jstat::JSON3.Object) # NOT WORKING
 end
 
 """Helper function. Creates an Array from JSONStat when sparse values are delivered as a dictionary"""
-function dicttovect(jstat::JSON3.Object, l::Int)
+function dicttovect(jstat::JSON.Object, l::Int)
     v = Vector{Any}(missing, l)
     for (k, j) in jstat.value
         v[parse(Int, k)+1] = j #JSONStat uses zero-indexing
@@ -187,6 +187,6 @@ function dicttovect(jstat::JSON3.Object, l::Int)
 end
 
 """Pretty printing dimension data"""
-pretty(d::Dict) = JSON3.pretty(d)
+pretty(d::Dict) = JSON.pretty(d)
 
 end # Module
