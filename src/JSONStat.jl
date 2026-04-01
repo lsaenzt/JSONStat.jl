@@ -74,7 +74,7 @@ function readdataset(jstat::JSON.Object)
 
     l = prod(jstat.size)
     dim = parsedimensions(jstat)
-    (typeof(jstat.value) == Dict{String,Any}) ? data = dicttovect(jstat, l) : data = jstat.value
+    isa(jstat.value, JSON3.Object) ? data = dicttovect(jstat, l) : data = jstat.value
     mask = @. !ismissing(data) # 1 for non missing values
 
     headers = Vector{Symbol}(undef, length(jstat.size) + 1)
@@ -119,6 +119,7 @@ function parsedimensions(jstat::JSON.Object)
         else # if there is an index
             if isa(categories.index, JSON.Object) # if categories is an Object dictionary we sort it. If it is an array it is alreary sorted
                 order = sortperm(collect(values(categories.index)))
+                (minimum(order)==0) && (order = order .+1) # if zero indexing add 1
                 orderedkeys = collect(keys(categories.index))[order] # sorts categories by index
             else
                 orderedkeys = categories.index
@@ -126,7 +127,7 @@ function parsedimensions(jstat::JSON.Object)
 
             if haskey(categories, :label) # if there is also labels
                 push!(dims,
-                    (; id=id, label=nm, categories=[categories.label[idx] for idx in orderedkeys], size=sz))
+                    (; id=id, label=nm, categories=[string(idx)*" "*categories.label[idx] for idx in orderedkeys], size=sz))
             else
                 push!(dims, (; id=id, label=nm, categories=orderedkeys, size=sz))
             end
@@ -181,7 +182,7 @@ end
 function dicttovect(jstat::JSON.Object, l::Int)
     v = Vector{Any}(missing, l)
     for (k, j) in jstat.value
-        v[parse(Int, k)+1] = j #JSONStat uses zero-indexing
+        v[parse(Int, string(k))+1] = j #JSONStat uses zero-indexing
     end
     return v
 end
